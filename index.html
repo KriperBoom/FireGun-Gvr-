@@ -8,7 +8,9 @@
         body { margin: 0; overflow: hidden; background-color: #050508; font-family: monospace; user-select: none; }
         canvas { display: block; }
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px; box-sizing: border-box; z-index: 10; }
-        .btn { pointer-events: auto; padding: 12px 24px; background: #c0392b; border: 2px solid #e74c3c; color: white; font-weight: bold; cursor: pointer; border-radius: 4px; }
+        .controls-row { display: flex; gap: 10px; pointer-events: auto; }
+        .btn { padding: 12px 24px; background: #c0392b; border: 2px solid #e74c3c; color: white; font-weight: bold; cursor: pointer; border-radius: 4px; font-family: inherit; }
+        .btn-blue { background: #2980b9; border: 2px solid #3498db; }
         #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; border: 2px solid #fff; border-radius: 50%; pointer-events: none; }
     </style>
     <script src="three.min.js"></script>
@@ -19,7 +21,10 @@
     <div id="ui-layer">
         <div id="game-hud" style="color: #e74c3c; font-size: 18px; font-weight: bold; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 4px;">Загрузка движка...</div>
         <div id="crosshair"></div>
-        <button id="mode-btn" class="btn">Gvr: Включить VR</button>
+        <div class="controls-row">
+            <button id="reset-btn" class="btn btn-blue">Сбросить прицел</button>
+            <button id="mode-btn" class="btn">Gvr: Включить VR</button>
+        </div>
     </div>
 
     <script>
@@ -126,9 +131,16 @@
                 Gvr.loadMod(FireGun);
                 Gvr.startLoop();
 
+                // Кнопка включения VR в движке
                 document.getElementById('mode-btn').addEventListener('click', function() {
                     Gvr.toggleVR('mode-btn', 'crosshair');
                 });
+
+                // Системная кнопка калибровки/сброса прицела
+                document.getElementById('reset-btn').addEventListener('click', function() {
+                    Gvr.recalibrate();
+                });
+
             } catch (e) {
                 console.error(e);
                 document.getElementById('game-hud').innerText = "ОШИБКА Gvr";
