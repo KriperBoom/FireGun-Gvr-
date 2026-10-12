@@ -12,9 +12,9 @@ class GvrEngine {
         
         this.gyro = { alpha: 0, beta: 0, gamma: 0 };
         this.raycaster = new THREE.Raycaster();
-        this.rayTarget = new THREE.Vector2(0, 0); // Центр экрана
+        this.rayTarget = new THREE.Vector2(0, 0);
         
-        this.entities = []; // База данных всех игровых объектов
+        this.entities = [];
         this.activeMod = null;
     }
 
@@ -22,12 +22,11 @@ class GvrEngine {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x050508);
 
-        const aspect = window.innerWidth / window.innerHeight;
+        var aspect = window.innerWidth / window.innerHeight;
         this.cameraNormal = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
         this.cameraLeft = new THREE.PerspectiveCamera(75, (window.innerWidth / 2) / window.innerHeight, 0.1, 1000);
         this.cameraRight = new THREE.PerspectiveCamera(75, (window.innerWidth / 2) / window.innerHeight, 0.1, 1000);
         
-        // Межзрачковое расстояние (IPD) для VR-сплитскрина
         this.cameraLeft.position.set(-0.25, 0, 0);
         this.cameraRight.position.set(0.25, 0, 0);
 
@@ -35,58 +34,57 @@ class GvrEngine {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
 
-        // Общий базовый свет от ядра
-        const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        var ambient = new THREE.AmbientLight(0xffffff, 0.4);
+        var dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(5, 15, 10);
         this.scene.add(ambient, dirLight);
 
         this.setupGyro();
-        window.addEventListener('resize', () => { this.onWindowResize(); });
+        
+        var self = this;
+        window.addEventListener('resize', function() { self.onWindowResize(); });
     }
 
     setupGyro() {
-        const handleOrientation = (event) => {
-            this.gyro.alpha = event.alpha ? THREE.MathUtils.degToRad(event.alpha) : 0;
-            this.gyro.beta = event.beta ? THREE.MathUtils.degToRad(event.beta) : 0;
-            this.gyro.gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0;
+        var self = this;
+        var handleOrientation = function(event) {
+            self.gyro.alpha = event.alpha ? THREE.MathUtils.degToRad(event.alpha) : 0;
+            self.gyro.beta = event.beta ? THREE.MathUtils.degToRad(event.beta) : 0;
+            self.gyro.gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0;
         };
 
         window.addEventListener('deviceorientation', handleOrientation, true);
         
-        // Разрешения для iOS Safari
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            document.body.addEventListener('click', () => {
-                DeviceOrientationEvent.requestPermission().then((res) => {
+            document.body.addEventListener('click', function() {
+                DeviceOrientationEvent.requestPermission().then(function(res) {
                     if(res === 'granted') {
                         window.addEventListener('deviceorientation', handleOrientation, true);
                     }
-                }).catch((err) => { console.error(err); });
+                }).catch(function(err) { console.error(err); });
             }, { once: true });
         }
     }
 
     toggleVR(buttonId, crosshairId) {
         this.isVR = !this.isVR;
-        const btn = document.getElementById(buttonId);
-        const cross = document.getElementById(crosshairId);
+        var btn = document.getElementById(buttonId);
+        var cross = document.getElementById(crosshairId);
         
         if (btn) { btn.innerText = this.isVR ? "Gvr: Обычный режим" : "Gvr: Включить VR"; }
         if (cross) { cross.style.display = this.isVR ? 'none' : 'block'; }
     }
 
-    // Создание сущности в ядре (как в Half-Life)
     spawnEntity(entity) {
         this.entities.push(entity);
         if (entity.mesh) { this.scene.add(entity.mesh); }
         if (entity.init) { entity.init(this.scene); }
     }
 
-    // Рэйкастинг направления взгляда игрока
     getLookTarget() {
-        const activeCam = this.isVR ? this.cameraLeft : this.cameraNormal; 
+        var activeCam = this.isVR ? this.cameraLeft : this.cameraNormal; 
         this.raycaster.setFromCamera(this.rayTarget, activeCam);
-        const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+        var intersects = this.raycaster.intersectObjects(this.scene.children, true);
         return intersects.length > 0 ? intersects : null;
     }
 
@@ -102,42 +100,44 @@ class GvrEngine {
     }
 
     startLoop() {
-        const loop = () => {
+        var self = this;
+        var loop = function() {
             requestAnimationFrame(loop);
             
-            if (this.activeMod && this.activeMod.update) {
-                this.activeMod.update(this);
+            if (self.activeMod && self.activeMod.update) {
+                self.activeMod.update(self);
             }
 
-            this.entities.forEach((ent) => { 
-                if(ent.update) { ent.update(this); } 
-            });
+            for (var i = 0; i < self.entities.length; i++) {
+                var ent = self.entities[i];
+                if (ent && ent.update) { ent.update(self); }
+            }
 
-            if (this.isVR) {
-                this.updateCameraRotation(this.cameraLeft);
-                this.updateCameraRotation(this.cameraRight);
+            if (self.isVR) {
+                self.updateCameraRotation(self.cameraLeft);
+                self.updateCameraRotation(self.cameraRight);
 
-                this.renderer.setViewport(0, 0, window.innerWidth / 2, window.innerHeight);
-                this.renderer.setScissor(0, 0, window.innerWidth / 2, window.innerHeight);
-                this.renderer.setScissorTest(true);
-                this.renderer.render(this.scene, this.cameraLeft);
+                self.renderer.setViewport(0, 0, window.innerWidth / 2, window.innerHeight);
+                self.renderer.setScissor(0, 0, window.innerWidth / 2, window.innerHeight);
+                self.renderer.setScissorTest(true);
+                self.renderer.render(self.scene, self.cameraLeft);
 
-                this.renderer.setViewport(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight);
-                this.renderer.setScissor(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight);
-                this.renderer.setScissorTest(true);
-                this.renderer.render(this.scene, this.cameraRight);
+                self.renderer.setViewport(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight);
+                self.renderer.setScissor(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight);
+                self.renderer.setScissorTest(true);
+                self.renderer.render(self.scene, self.cameraRight);
             } else {
-                this.renderer.setScissorTest(false);
-                this.renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-                this.updateCameraRotation(this.cameraNormal);
-                this.renderer.render(this.scene, this.cameraNormal);
+                self.renderer.setScissorTest(false);
+                self.renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+                self.updateCameraRotation(self.cameraNormal);
+                self.renderer.render(self.scene, self.cameraNormal);
             }
         };
         loop();
     }
 
     onWindowResize() {
-        const w = window.innerWidth, h = window.innerHeight;
+        var w = window.innerWidth, h = window.innerHeight;
         this.cameraNormal.aspect = w / h; this.cameraNormal.updateProjectionMatrix();
         this.cameraLeft.aspect = (w/2) / h; this.cameraLeft.updateProjectionMatrix();
         this.cameraRight.aspect = (w/2) / h; this.cameraRight.updateProjectionMatrix();
