@@ -3,66 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>FireGun [Powered by Gvr Engine]</title>
+    <title>FireGun [Powered by Gvr]</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050508; font-family: 'Courier New', monospace; user-select: none; }
+        body { margin: 0; overflow: hidden; background-color: #050508; font-family: monospace; user-select: none; }
         canvas { display: block; }
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px; box-sizing: border-box; z-index: 10; }
-        .btn { pointer-events: auto; padding: 12px 24px; background: rgba(192, 57, 43, 0.8); border: 2px solid #e74c3c; color: white; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; font-family: inherit; }
-        .btn:hover { background: rgba(231, 76, 60, 1); transform: scale(1.05); }
-        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; border: 2px solid rgba(255,255,255,0.8); border-radius: 50%; pointer-events: none; }
+        .btn { pointer-events: auto; padding: 12px 24px; background: #c0392b; border: 2px solid #e74c3c; color: white; font-weight: bold; cursor: pointer; border-radius: 4px; }
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; border: 2px solid #fff; border-radius: 50%; pointer-events: none; }
     </style>
-    <!-- Подключаем библиотеку Three.js -->
     <script src="three.min.js"></script>
-    <!-- Подключаем твой движок Gvr -->
     <script src="Gvr.js"></script>
 </head>
 <body>
 
     <div id="ui-layer">
-        <div id="game-hud" style="color: #e74c3c; font-size: 18px; font-weight: bold; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 4px; text-align: center;">Загрузка Gvr...</div>
+        <div id="game-hud" style="color: #e74c3c; font-size: 18px; font-weight: bold; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 4px;">Загрузка движка...</div>
         <div id="crosshair"></div>
         <button id="mode-btn" class="btn">Gvr: Включить VR</button>
     </div>
 
     <script>
-        // Ждем полной загрузки внешних скриптов (и three.min.js, и Gvr.js)
         window.addEventListener('DOMContentLoaded', function() {
             try {
-                // Создаем экземпляр движка
                 var Gvr = new GvrEngine();
                 Gvr.init();
 
-                // =========================================================================
-                // 🎮 ИГРОВОЙ МОД (FIRE GUN)
-                // =========================================================================
                 class FireGunMod {
                     constructor() {
                         this.frags = 0;
-                        this.timeLeft = 60; 
-                        this.hud = null;
+                        this.timeLeft = 60;
+                        this.hud = document.getElementById('game-hud');
                         this.gameOver = false;
-                        this.timerInterval = null;
                     }
 
                     start(engine) {
-                        this.hud = document.getElementById('game-hud');
                         this.updateHUD();
-
                         var grid = new THREE.GridHelper(50, 25, 0xe74c3c, 0x331111);
                         grid.position.y = -3;
                         engine.scene.add(grid);
 
-                        for(var i = 0; i < 6; i++) { this.spawnTarget(engine); }
+                        for (var i = 0; i < 6; i++) { this.spawnTarget(engine); }
 
                         var self = this;
-                        this.timerInterval = setInterval(function() {
+                        var timer = setInterval(function() {
                             if (self.timeLeft > 0) {
                                 self.timeLeft--;
                                 self.updateHUD();
                             } else {
                                 self.gameOver = true;
-                                clearInterval(self.timerInterval);
+                                clearInterval(timer);
                                 self.updateHUD();
                             }
                         }, 1000);
@@ -70,38 +59,44 @@
 
                     spawnTarget(engine) {
                         if (this.gameOver) return;
-
-                        var targetEntity = {
+                        var target = {
                             mesh: new THREE.Mesh(
                                 new THREE.BoxGeometry(1.5, 1.5, 1.5),
                                 new THREE.MeshStandardMaterial({ color: 0x9b59b6, wireframe: true })
                             ),
-                            init: function(scene) {
-                                this.mesh.position.set(
-                                    (Math.random() - 0.5) * 20,
-                                    (Math.random() - 0.5) * 8 + 2,
-                                    (Math.random() - 0.5) * 20 - 4
-                                );
+                            init: function() {
+                                this.mesh.position.set((Math.random()-0.5)*20, (Math.random()-0.5)*8+2, (Math.random()-0.5)*20-4);
                                 this.aimTime = 0;
                             },
-                            update: function(engineInstance) {
+                            update: function() {
                                 this.mesh.rotation.x += 0.02;
                                 this.mesh.rotation.y += 0.01;
                             }
                         };
-                        engine.spawnEntity(targetEntity);
+                        engine.spawnEntity(target);
                     }
 
-                    spawnExplosion(engine, position) {
-                        var particleCount = 15;
-                        var geometry = new THREE.BufferGeometry();
-                        var positions = [];
-                        var velocities = [];
-
-                        for(var i = 0; i = 30) {
-                                    this.spawnExplosion(engine, entity.mesh.position); 
-                                    engine.scene.remove(entity.mesh);
-                                    engine.entities = engine.entities.filter(function(e) { return e !== entity; });
+                    update(engine) {
+                        if (this.gameOver) {
+                            engine.entities = [];
+                            return;
+                        }
+                        var hit = engine.getLookTarget();
+                        if (hit && hit.object) {
+                            var ent = null;
+                            for (var i = 0; i < engine.entities.length; i++) {
+                                if (engine.entities[i].mesh === hit.object) { ent = engine.entities[i]; break; }
+                            }
+                            if (ent && ent.aimTime !== undefined) {
+                                ent.aimTime++;
+                                ent.mesh.scale.setScalar(1 - (ent.aimTime / 30));
+                                if (ent.aimTime >= 30) {
+                                    engine.scene.remove(ent.mesh);
+                                    var nextEnts = [];
+                                    for (var j = 0; j < engine.entities.length; j++) {
+                                        if (engine.entities[j] !== ent) nextEnts.push(engine.entities[j]);
+                                    }
+                                    engine.entities = nextEnts;
                                     this.frags++;
                                     this.updateHUD();
                                     this.spawnTarget(engine);
@@ -109,35 +104,34 @@
                             }
                         } else {
                             for (var k = 0; k < engine.entities.length; k++) {
-                                var ent = engine.entities[k];
-                                if(ent && ent.aimTime > 0) { ent.aimTime = 0; ent.mesh.scale.setScalar(1); }
+                                if (engine.entities[k].aimTime > 0) {
+                                    engine.entities[k].aimTime = 0;
+                                    engine.entities[k].mesh.scale.setScalar(1);
+                                }
                             }
                         }
                     }
 
                     updateHUD() {
-                        if(!this.hud) return;
+                        if (!this.hud) return;
                         if (this.gameOver) {
-                            this.hud.innerHTML = 'МАТЧ ОКОНЧЕН!<br>УНИЧТОЖЕНО: ' + this.frags + ' КУБОВ';
+                            this.hud.innerHTML = 'КОНЕЦ МАТЧА!<br>РЕЗУЛЬТАТ: ' + this.frags + ' КУБОВ';
                         } else {
                             this.hud.innerHTML = '[FIREGUN] FRAGS: ' + this.frags + ' | ВРЕМЯ: ' + this.timeLeft + 'с';
                         }
                     }
                 }
 
-                // Запуск мода
                 var FireGun = new FireGunMod();
                 Gvr.loadMod(FireGun);
                 Gvr.startLoop();
 
-                // Вешаем клик на кнопку
                 document.getElementById('mode-btn').addEventListener('click', function() {
                     Gvr.toggleVR('mode-btn', 'crosshair');
                 });
-
-            } catch (error) {
-                console.error("Критический сбой:", error);
-                document.getElementById('game-hud').innerText = "ОШИБКА ИНИЦИАЛИЗАЦИИ Gvr";
+            } catch (e) {
+                console.error(e);
+                document.getElementById('game-hud').innerText = "ОШИБКА Gvr";
             }
         });
     </script>
