@@ -12,8 +12,9 @@
         .btn:hover { background: rgba(231, 76, 60, 1); transform: scale(1.05); }
         #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; border: 2px solid rgba(255,255,255,0.8); border-radius: 50%; pointer-events: none; }
     </style>
-    <!-- Подключаем зависимости локально из твоего проекта -->
+    <!-- Подключаем библиотеку Three.js -->
     <script src="three.min.js"></script>
+    <!-- Подключаем твой движок Gvr -->
     <script src="Gvr.js"></script>
 </head>
 <body>
@@ -25,11 +26,11 @@
     </div>
 
     <script>
-        // Ждем пока загрузятся все внешние скрипты (three.min.js и Gvr.js)
-        window.addEventListener('DOMContentLoaded', () => {
+        // Ждем полной загрузки внешних скриптов (и three.min.js, и Gvr.js)
+        window.addEventListener('DOMContentLoaded', function() {
             try {
-                // Инициализируем ядро Gvr
-                const Gvr = new GvrEngine();
+                // Создаем экземпляр движка
+                var Gvr = new GvrEngine();
                 Gvr.init();
 
                 // =========================================================================
@@ -38,7 +39,7 @@
                 class FireGunMod {
                     constructor() {
                         this.frags = 0;
-                        this.timeLeft = 60; // Время игры в секундах
+                        this.timeLeft = 60; 
                         this.hud = null;
                         this.gameOver = false;
                         this.timerInterval = null;
@@ -48,23 +49,21 @@
                         this.hud = document.getElementById('game-hud');
                         this.updateHUD();
 
-                        // Пол киберпространства
-                        const grid = new THREE.GridHelper(50, 25, 0xe74c3c, 0x331111);
+                        var grid = new THREE.GridHelper(50, 25, 0xe74c3c, 0x331111);
                         grid.position.y = -3;
                         engine.scene.add(grid);
 
-                        // Стартовый спавн 6 целей
-                        for(let i = 0; i < 6; i++) { this.spawnTarget(engine); }
+                        for(var i = 0; i < 6; i++) { this.spawnTarget(engine); }
 
-                        // Запуск таймера
-                        this.timerInterval = setInterval(() => {
-                            if (this.timeLeft > 0) {
-                                this.timeLeft--;
-                                this.updateHUD();
+                        var self = this;
+                        this.timerInterval = setInterval(function() {
+                            if (self.timeLeft > 0) {
+                                self.timeLeft--;
+                                self.updateHUD();
                             } else {
-                                this.gameOver = true;
-                                clearInterval(this.timerInterval);
-                                this.updateHUD();
+                                self.gameOver = true;
+                                clearInterval(self.timerInterval);
+                                self.updateHUD();
                             }
                         }, 1000);
                     }
@@ -72,7 +71,7 @@
                     spawnTarget(engine) {
                         if (this.gameOver) return;
 
-                        const targetEntity = {
+                        var targetEntity = {
                             mesh: new THREE.Mesh(
                                 new THREE.BoxGeometry(1.5, 1.5, 1.5),
                                 new THREE.MeshStandardMaterial({ color: 0x9b59b6, wireframe: true })
@@ -93,103 +92,51 @@
                         engine.spawnEntity(targetEntity);
                     }
 
-                    // Генерация взрыва частиц
                     spawnExplosion(engine, position) {
-                        const particleCount = 15;
-                        const geometry = new THREE.BufferGeometry();
-                        const positions = [];
-                        const velocities = [];
+                        var particleCount = 15;
+                        var geometry = new THREE.BufferGeometry();
+                        var positions = [];
+                        var velocities = [];
 
-                        for(let i = 0; i < particleCount; i++) {
-                            positions.push(position.x, position.y, position.z);
-                            velocities.push(
-                                (Math.random() - 0.5) * 0.2,
-                                (Math.random() - 0.5) * 0.2,
-                                (Math.random() - 0.5) * 0.2
-                            );
-                        }
-
-                        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-                        const material = new THREE.PointsMaterial({ color: 0x9b59b6, size: 0.3 });
-                        const particleSystem = new THREE.Points(geometry, material);
-
-                        const explosionEntity = {
-                            mesh: particleSystem,
-                            life: 30, // Исчезает через 30 кадров
-                            update: function(engineInstance) {
-                                const posArr = this.mesh.geometry.attributes.position.array;
-                                for(let i = 0; i < particleCount; i++) {
-                                    posArr[i*3] += velocities[i*3];
-                                    posArr[i*3+1] += velocities[i*3+1];
-                                    posArr[i*3+2] += velocities[i*3+2];
-                                }
-                                this.mesh.geometry.attributes.position.needsUpdate = true;
-                                this.life--;
-                                
-                                if(this.life <= 0) {
-                                    engineInstance.scene.remove(this.mesh);
-                                    engineInstance.entities = engineInstance.entities.filter((e) => { return e !== this; });
-                                }
-                            }
-                        };
-                        engine.spawnEntity(explosionEntity);
-                    }
-
-                    update(engine) {
-                        if (this.gameOver) {
-                            // Очищаем кубы при завершении матча
-                            engine.entities.forEach((e) => {
-                                if (e.aimTime !== undefined) { engine.scene.remove(e.mesh); }
-                            });
-                            engine.entities = engine.entities.filter((e) => { return e.aimTime === undefined; });
-                            return;
-                        }
-
-                        const hit = engine.getLookTarget();
-                        if (hit && hit.object) {
-                            const entity = engine.entities.find((e) => { return e.mesh === hit.object; });
-                            if (entity && entity.aimTime !== undefined) {
-                                entity.aimTime += 1;
-                                entity.mesh.scale.setScalar(1 - (entity.aimTime / 30));
-                                
-                                if (entity.aimTime >= 30) {
+                        for(var i = 0; i = 30) {
                                     this.spawnExplosion(engine, entity.mesh.position); 
                                     engine.scene.remove(entity.mesh);
-                                    engine.entities = engine.entities.filter((e) => { return e !== entity; });
+                                    engine.entities = engine.entities.filter(function(e) { return e !== entity; });
                                     this.frags++;
                                     this.updateHUD();
                                     this.spawnTarget(engine);
                                 }
                             }
                         } else {
-                            engine.entities.forEach((e) => {
-                                if(e.aimTime > 0) { e.aimTime = 0; e.mesh.scale.setScalar(1); }
-                            });
+                            for (var k = 0; k < engine.entities.length; k++) {
+                                var ent = engine.entities[k];
+                                if(ent && ent.aimTime > 0) { ent.aimTime = 0; ent.mesh.scale.setScalar(1); }
+                            }
                         }
                     }
 
                     updateHUD() {
                         if(!this.hud) return;
                         if (this.gameOver) {
-                            this.hud.innerHTML = `МАТЧ ОКОНЧЕН!<br>УНИЧТОЖЕНО: ${this.frags} КУБОВ`;
+                            this.hud.innerHTML = 'МАТЧ ОКОНЧЕН!<br>УНИЧТОЖЕНО: ' + this.frags + ' КУБОВ';
                         } else {
-                            this.hud.innerHTML = `[FIREGUN] FRAGS: ${this.frags} | ВРЕМЯ: ${this.timeLeft}с`;
+                            this.hud.innerHTML = '[FIREGUN] FRAGS: ' + this.frags + ' | ВРЕМЯ: ' + this.timeLeft + 'с';
                         }
                     }
                 }
 
-                // Загружаем наш мод FireGun в ядро Gvr
-                const FireGun = new FireGunMod();
+                // Запуск мода
+                var FireGun = new FireGunMod();
                 Gvr.loadMod(FireGun);
                 Gvr.startLoop();
 
-                // Вешаем обработчик кнопки на переключение VR в движке
-                document.getElementById('mode-btn').addEventListener('click', () => {
+                // Вешаем клик на кнопку
+                document.getElementById('mode-btn').addEventListener('click', function() {
                     Gvr.toggleVR('mode-btn', 'crosshair');
                 });
 
             } catch (error) {
-                console.error("Критический сбой инициализации:", error);
+                console.error("Критический сбой:", error);
                 document.getElementById('game-hud').innerText = "ОШИБКА ИНИЦИАЛИЗАЦИИ Gvr";
             }
         });
