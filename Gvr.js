@@ -88,10 +88,18 @@ class GvrEngine {
         return intersects.length > 0 ? intersects : null;
     }
 
-    updateCameraRotation(camera) {
-        camera.rotation.y = this.gyro.alpha;
-        camera.rotation.x = this.gyro.beta - Math.PI / 2;
-        camera.rotation.z = this.gyro.gamma;
+        updateCameraRotation(camera) {
+        // Если включен VR (телефон лежит боком) — меняем оси местами и корректируем инверсию
+        if (this.isVR) {
+            camera.rotation.y = this.gyro.beta;   // Наклон телефона вперед/назад становится поворотом влево/вправо
+            camera.rotation.x = this.gyro.alpha;  // Поворот влево/вправо становится наклоном вверх/вниз
+            camera.rotation.z = -this.gyro.gamma; // Коррекция крена
+        } else {
+            // Обычный вертикальный режим (Magic Window)
+            camera.rotation.y = this.gyro.alpha;
+            camera.rotation.x = this.gyro.beta - Math.PI / 2;
+            camera.rotation.z = this.gyro.gamma;
+        }
     }
 
     loadMod(modInstance) {
