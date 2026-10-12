@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>FireGun [Powered by Gvr Engine]</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; user-select: none; }
+        canvas { display: block; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px; box-sizing: border-box; }
+        .btn { pointer-events: auto; padding: 12px 24px; background: rgba(192, 57, 43, 0.8); border: 2px solid #e74c3c; color: white; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; font-family: inherit; }
+        .btn:hover { background: rgba(231, 76, 60, 1); transform: scale(1.05); }
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; border: 2px solid rgba(255,255,255,0.8); border-radius: 50%; pointer-events: none; }
+    </style>
+    <!-- Зависимости -->
+    <script src="https://cloudflare.com"></script>
+    <!-- Наш универсальный движок -->
+    <script src="Gvr.js"></script>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="game-hud" style="color: #e74c3c; font-size: 18px; font-weight: bold; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 4px;"></div>
+        <div id="crosshair"></div>
+        <button id="mode-btn" class="btn">Gvr: Включить VR</button>
+    </div>
+
+    <script>
+        // =========================================================================
+        // 🎮 ИГРОВОЙ МОД (FIRE GUN)
+        // Сборка поверх ядра Gvr
+        // =========================================================================
+        class FireGunMod {
+            constructor() {
+                this.frags = 0;
+                this.hud = null;
+            }
+
+            // Запускается движком Gvr при инициализации мода
+            start(engine) {
+                this.hud = document.getElementById('game-hud');
+                this.updateHUD();
+
+                // Кибер-пол (сетка) для мода FireGun
+                const grid = new THREE.GridHelper(50, 25, 0xe74c3c, 0x331111);
+                grid.position.y = -3;
+                engine.scene.add(grid);
+
+                // Спавним 6 первоначальных целей в ядре
+                for(let i = 0; i  e.mesh === hit.object);
+                    
+                    if (entity) {
+                        entity.aimTime += 1;
+                        entity.mesh.scale.setScalar(1 - (entity.aimTime / 30));
+                        
+                        // Если удерживаем взгляд 30 кадров (~0.5 сек) — засчитываем фраг
+                        if (entity.aimTime >= 30) {
+                            engine.scene.remove(entity.mesh);
+                            engine.entities = engine.entities.filter(e => e !== entity);
+                            this.frags++;
+                            this.updateHUD();
+                            this.spawnTarget(engine); // Респавн цели в случайном месте
+                        }
+                    }
+                } else {
+                    // Возвращаем масштаб, если игрок убрал прицел взгляда
+                    engine.entities.forEach(e => {
+                        if(e.aimTime > 0) {
+                            e.aimTime = 0;
+                            e.mesh.scale.setScalar(1);
+                        }
+                    });
+                }
+            }
+
+            updateHUD() {
+                if(this.hud) this.hud.innerText = `[FIREGUN] FRAGS: ${this.frags}`;
+            }
+        }
+
+        // =========================================================================
+        // 🚀 СТАРТ СИСТЕМЫ
+        // =========================================================================
+        const Gvr = new GvrEngine();
+        Gvr.init();
+
+        // Монтируем FireGun в ядро Gvr
+        const FireGun = new FireGunMod();
+        Gvr.loadMod(FireGun);
+
+        // Запуск рендер-цикла движка
+        Gvr.startLoop();
+
+        // Биндим кнопку UI на переключение режимов внутри ядра
+        document.getElementById('mode-btn').addEventListener('click', () => {
+            Gvr.toggleVR('mode-btn', 'crosshair');
+        });
+
+    </script>
+</body>
+</html>
